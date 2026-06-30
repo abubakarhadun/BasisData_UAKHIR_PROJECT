@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beranda — Sociaverse</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .feed-header {
+            font-size: 20px; font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .char-count { font-size: 12px; color: var(--text-muted); }
+        .char-count.over { color: var(--danger); }
+        .image-preview-wrap { margin-top: 10px; position: relative; display: none; }
+        .image-preview-wrap img { border-radius: var(--radius-md); max-height: 200px; object-fit: cover; width: 100%; }
+        .remove-img {
+            position: absolute; top: 8px; right: 8px;
+            background: rgba(0,0,0,0.7); color: #fff;
+            border-radius: 50%; width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; border: none; cursor: pointer;
+        }
+        .post-comments { padding: 0 16px 14px; }
+        .comment-item {
+            display: flex; gap: 8px; margin-top: 10px;
+        }
+        .comment-body {
+            background: var(--bg-input);
+            border-radius: var(--radius-md);
+            padding: 8px 12px; flex: 1;
+        }
+        .comment-author { font-size: 13px; font-weight: 600; }
+        .comment-text   { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+        .comment-form { display: flex; gap: 8px; margin-top: 12px; align-items: flex-end; }
+        .comment-form input {
+            flex: 1; background: var(--bg-input);
+            border: 1px solid var(--border); border-radius: var(--radius-full);
+            color: var(--text-primary); padding: 9px 16px; font-size: 13px; outline: none;
+        }
+        .comment-form input:focus { border-color: var(--border-focus); }
+        .load-more { display: block; width: 100%; padding: 14px; background: var(--bg-card);
+            border: 1px solid var(--border); border-radius: var(--radius-lg);
+            color: var(--text-secondary); font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: background var(--transition); }
+        .load-more:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        /* Report modal */
+        .report-options { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+        .report-option {
+            padding: 10px 14px; border-radius: var(--radius-md);
+            background: var(--bg-input); border: 1px solid var(--border);
+            cursor: pointer; font-size: 14px; text-align: left;
+            transition: border-color var(--transition);
+        }
+        .report-option:hover, .report-option.selected { border-color: var(--accent); background: var(--accent-glow); }
+    </style>
+</head>
+<body>
+
+<div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- Main Feed -->
+    <main class="main-content">
+        <div class="feed-header">🏠 Beranda</div>
+
+        <!-- Create Post -->
+        <div class="create-post" id="create-post-box">
+            <div class="create-post-top">
+                <img id="my-avatar" src="" class="avatar avatar-md" alt="avatar">
+                <textarea id="post-textarea" placeholder="Apa yang sedang kamu pikirkan?" maxlength="2000"></textarea>
+            </div>
+            <div class="image-preview-wrap" id="img-preview-wrap">
+                <img id="img-preview" src="" alt="preview">
+                <button class="remove-img" id="remove-img" title="Hapus gambar">✕</button>
+            </div>
+            <div class="create-post-actions">
+                <span class="char-count" id="char-count">0/2000</span>
+                <label class="btn btn-secondary btn-sm" for="post-image" style="cursor:pointer;">
+                    📷 Foto
+                </label>
+                <input type="file" id="post-image" accept="image/*" style="display:none">
+                <button class="btn btn-primary btn-sm" id="submit-post">Posting</button>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div id="feed">
+            <div style="display:flex; justify-content:center; padding:40px;">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <button class="load-more" id="load-more" style="display:none;">
+            Muat lebih banyak postingan ↓
+        </button>
+    </main>
+</div>
+
+<!-- Report Modal -->
+<div class="modal-overlay" id="report-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">⚠️ Laporkan Postingan</div>
+            <button class="modal-close" id="close-report">✕</button>
+        </div>
+        <p style="font-size:14px; color:var(--text-secondary);">Pilih alasan pelaporan:</p>
+        <div class="report-options">
+            <button class="report-option" data-reason="Konten menyinggung atau tidak pantas">😡 Menyinggung / Tidak pantas</button>
+            <button class="report-option" data-reason="Konten mengandung spam atau iklan">🚫 Spam atau iklan</button>
+            <button class="report-option" data-reason="Konten mengandung kekerasan atau ancaman">⚡ Kekerasan atau ancaman</button>
+            <button class="report-option" data-reason="Konten melanggar hak cipta">©️ Pelanggaran hak cipta</button>
+            <button class="report-option" data-reason="Lainnya">🔹 Alasan lainnya</button>
+        </div>
+        <button class="btn btn-danger" id="submit-report" style="width:100%;" disabled>Kirim Laporan</button>
+    </div>
+</div>
+
+<!-- Edit Post Modal -->
+<div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">✏️ Edit Postingan</div>
+            <button class="modal-close" id="close-edit">✕</button>
+        </div>
+        <textarea id="edit-textarea" class="form-control" rows="5"
+                  style="resize:vertical; margin-bottom:16px;" maxlength="2000"></textarea>
+        <button class="btn btn-primary" id="save-edit" style="width:100%;">Simpan Perubahan</button>
+    </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+    requireAuth();
+
+    const currentUser = getUser();
+    let page = 1;
+    let hasMore = true;
+    let reportTargetId = null;
+    let editTargetId   = null;
+    let selectedFile   = null;
+
+    // ---- Init ----
+    document.getElementById('my-avatar').src = avatarUrl(currentUser.profile_picture);
+    buildSidebar('timeline');
+
+    // ---- Character counter ----
+    const textarea   = document.getElementById('post-textarea');
+    const charCount  = document.getElementById('char-count');
+    textarea.addEventListener('input', () => {
+        const len = textarea.value.length;
+        charCount.textContent = `${len}/2000`;
+        charCount.className   = `char-count${len > 1900 ? ' over' : ''}`;
+    });
+
+    // ---- Image preview ----
+    const fileInput    = document.getElementById('post-image');
+    const previewWrap  = document.getElementById('img-preview-wrap');
+    const previewImg   = document.getElementById('img-preview');
+
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        selectedFile = file;
+        previewImg.src = URL.createObjectURL(file);
+        previewWrap.style.display = 'block';
+    });
+
+    document.getElementById('remove-img').addEventListener('click', () => {
+        selectedFile = null;
+        fileInput.value = '';
+        previewWrap.style.display = 'none';
+    });
+
+    // ---- Submit post ----
+    document.getElementById('submit-post').addEventListener('click', async () => {
+        const content = textarea.value.trim();
+        if (!content) { showToast('Konten tidak boleh kosong.', 'error'); return; }
+
+        const btn = document.getElementById('submit-post');
+        btn.disabled = true; btn.textContent = 'Memposting...';
+
+        const formData = new FormData();
+        formData.append('content', content);
+        if (selectedFile) formData.append('image', selectedFile);
+
+        const { ok, data } = await Posts.create(formData);
+
+        if (ok && data.success) {
+            textarea.value      = '';
+            charCount.textContent = '0/2000';
+            selectedFile = null;
+            fileInput.value = '';
+            previewWrap.style.display = 'none';
+            showToast('Postingan berhasil dibuat! ✨', 'success');
+            // Reset and reload feed
+            page = 1; hasMore = true;
+            document.getElementById('feed').innerHTML = '';
+            loadPosts();
+        } else {
+            showToast(data.message || 'Gagal memposting.', 'error');
+        }
+
+        btn.disabled = false; btn.textContent = 'Posting';
+    });
+
+    // ---- Load Posts ----
+    async function loadPosts() {
+        const { ok, data } = await Posts.getTimeline(page);
+        if (!ok || !data.success) {
+            showToast('Gagal memuat feed.', 'error'); return;
+        }
+
+        const feed = document.getElementById('feed');
+        if (page === 1) feed.innerHTML = '';
+
+        if (data.data.length === 0 && page === 1) {
+            feed.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🌱</div>
+                    <div class="empty-title">Feed Masih Kosong</div>
+                    <div class="empty-desc">Jadilah yang pertama memposting sesuatu!</div>
+                </div>`;
+            return;
+        }
+
+        data.data.forEach(post => feed.appendChild(buildPostCard(post)));
+
+        hasMore = data.pagination.page < data.pagination.pages;
+        document.getElementById('load-more').style.display = hasMore ? 'block' : 'none';
+    }
+
+    // ---- Build Post Card ----
+    function buildPostCard(post) {
+        const card = document.createElement('div');
+        card.className = 'post-card';
+        card.id = `post-${post.POST_ID}`;
+
+        const isOwner = currentUser.user_id === post.USER_ID;
+        const isAdmin = currentUser.role === 'admin';
+
+        card.innerHTML = `
+            <div class="post-header">
+                <img src="${avatarUrl(post.PROFILE_PICTURE)}" class="post-avatar" alt="avatar">
+                <div class="post-meta">
+                    <a href="profile.html?u=${escHtml(post.USERNAME)}" class="post-author">
+                        ${escHtml(post.FULLNAME)}
+                    </a>
+                    <div class="post-time">
+                        @${escHtml(post.USERNAME)} · ${timeAgo(post.CREATED_AT)}
+                        ${post.IS_EDITED ? '<span style="color:var(--text-muted)"> · diedit</span>' : ''}
+                    </div>
+                </div>
+                <div class="post-menu" id="menu-${post.POST_ID}">
+                    <button class="post-menu-btn" onclick="toggleMenu(${post.POST_ID})">···</button>
+                    <div class="dropdown" id="dropdown-${post.POST_ID}">
+                        ${isOwner || isAdmin ? `
+                            <div class="dropdown-item" onclick="openEdit(${post.POST_ID}, \`${escHtml(post.CONTENT)}\`)">
+                                ✏️ Edit
+                            </div>
+                            <div class="dropdown-item danger" onclick="deletePost(${post.POST_ID})">
+                                🗑️ Hapus
+                            </div>` : `
+                            <div class="dropdown-item danger" onclick="openReport(${post.POST_ID})">
+                                ⚠️ Laporkan
+                            </div>`
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="post-content">${escHtml(post.CONTENT)}</div>
+
+            ${post.IMAGE_URL ? `<img class="post-image" src="${avatarUrl(post.IMAGE_URL)}" alt="post image" loading="lazy">` : ''}
+
+            <div class="post-actions">
+                <button class="action-btn ${post.IS_LIKED_BY_ME ? 'liked' : ''}" id="like-btn-${post.POST_ID}"
+                        onclick="toggleLike(${post.POST_ID})">
+                    <span class="icon">${post.IS_LIKED_BY_ME ? '❤️' : '🤍'}</span>
+                    <span id="like-count-${post.POST_ID}">${post.LIKE_COUNT || 0}</span>
+                </button>
+                <button class="action-btn" onclick="toggleComments(${post.POST_ID})">
+                    <span class="icon">💬</span>
+                    <span id="comment-count-${post.POST_ID}">${post.COMMENT_COUNT || 0}</span>
+                </button>
+            </div>
+
+            <div class="post-comments" id="comments-${post.POST_ID}" style="display:none;">
+                <div id="comments-list-${post.POST_ID}"></div>
+                <div class="comment-form">
+                    <img src="${avatarUrl(currentUser.profile_picture)}" class="avatar avatar-sm" alt="avatar">
+                    <input type="text" placeholder="Tulis komentar..." id="comment-input-${post.POST_ID}"
+                           onkeypress="if(event.key==='Enter') submitComment(${post.POST_ID})">
+                    <button class="btn btn-primary btn-sm" onclick="submitComment(${post.POST_ID})">Kirim</button>
+                </div>
+            </div>
+        `;
+
+        return card;
+    }
+
+    // ---- Like ----
+    async function toggleLike(postId) {
+        const { ok, data } = await Posts.toggleLike(postId);
+        if (!ok) return;
+
+        const btn        = document.getElementById(`like-btn-${postId}`);
+        const countEl    = document.getElementById(`like-count-${postId}`);
+        const isLiked    = data.action === 'LIKED';
+
+        btn.className    = `action-btn ${isLiked ? 'liked' : ''}`;
+        btn.querySelector('.icon').textContent = isLiked ? '❤️' : '🤍';
+        countEl.textContent = data.data.like_count;
+    }
+
+    // ---- Comments ----
+    async function toggleComments(postId) {
+        const section = document.getElementById(`comments-${postId}`);
+        const isHidden = section.style.display === 'none';
+        section.style.display = isHidden ? 'block' : 'none';
+
+        if (isHidden) {
+            const { ok, data } = await Posts.getPost(postId);
+            if (ok && data.success) renderComments(postId, data.data.COMMENTS || []);
+        }
+    }
+
+    function renderComments(postId, comments) {
+        const list = document.getElementById(`comments-list-${postId}`);
+        if (!comments.length) {
+            list.innerHTML = '<p style="font-size:13px;color:var(--text-muted);padding:8px 0;">Belum ada komentar.</p>';
+            return;
+        }
+        list.innerHTML = comments.map(c => `
+            <div class="comment-item" id="comment-item-${c.COMMENT_ID}">
+                <img src="${avatarUrl(c.PROFILE_PICTURE)}" class="avatar avatar-sm">
+                <div class="comment-body">
+                    <a href="profile.html?u=${escHtml(c.USERNAME)}" class="comment-author">
+                        ${escHtml(c.USERNAME)}
+                    </a>
+                    <div class="comment-text">${escHtml(c.COMMENT_TEXT)}</div>
+                </div>
+                ${c.USER_ID === currentUser.user_id || currentUser.role === 'admin' ? `
+                    <button onclick="deleteComment(${postId}, ${c.COMMENT_ID})" title="Hapus"
+                        style="background:none;color:var(--text-muted);font-size:16px;padding:4px;">✕</button>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    async function submitComment(postId) {
+        const input = document.getElementById(`comment-input-${postId}`);
+        const text  = input.value.trim();
+        if (!text) return;
+
+        const { ok, data } = await Posts.addComment(postId, text);
+        if (ok && data.success) {
+            input.value = '';
+            const countEl = document.getElementById(`comment-count-${postId}`);
+            countEl.textContent = parseInt(countEl.textContent) + 1;
+            // Reload comments
+            const postData = await Posts.getPost(postId);
+            if (postData.ok) renderComments(postId, postData.data.data.COMMENTS || []);
+        } else {
+            showToast(data.message || 'Gagal mengirim komentar.', 'error');
+        }
+    }
+
+    async function deleteComment(postId, commentId) {
+        if (!confirm('Hapus komentar ini?')) return;
+        const { ok, data } = await Posts.deleteComment(postId, commentId);
+        if (ok && data.success) {
+            document.getElementById(`comment-item-${commentId}`)?.remove();
+            const countEl = document.getElementById(`comment-count-${postId}`);
+            countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+        }
+    }
+
+    // ---- Delete Post ----
+    async function deletePost(postId) {
+        if (!confirm('Hapus postingan ini? Tindakan tidak dapat dibatalkan.')) return;
+        const { ok, data } = await Posts.delete(postId);
+        if (ok && data.success) {
+            document.getElementById(`post-${postId}`)?.remove();
+            showToast('Postingan dihapus.', 'success');
+        } else {
+            showToast(data.message || 'Gagal menghapus.', 'error');
+        }
+    }
+
+    // ---- Edit Post ----
+    function openEdit(postId, content) {
+        editTargetId = postId;
+        document.getElementById('edit-textarea').value = content;
+        document.getElementById('edit-modal').classList.add('visible');
+        toggleMenu(postId);
+    }
+
+    document.getElementById('close-edit').addEventListener('click', () => {
+        document.getElementById('edit-modal').classList.remove('visible');
+    });
+
+    document.getElementById('save-edit').addEventListener('click', async () => {
+        const content = document.getElementById('edit-textarea').value.trim();
+        if (!content) { showToast('Konten tidak boleh kosong.', 'error'); return; }
+
+        const { ok, data } = await Posts.update(editTargetId, content);
+        if (ok && data.success) {
+            document.getElementById('edit-modal').classList.remove('visible');
+            showToast('Postingan diperbarui.', 'success');
+            page = 1; document.getElementById('feed').innerHTML = '';
+            loadPosts();
+        } else {
+            showToast(data.message || 'Gagal mengedit.', 'error');
+        }
+    });
+
+    // ---- Report ----
+    let selectedReason = '';
+
+    function openReport(postId) {
+        reportTargetId = postId;
+        selectedReason = '';
+        document.querySelectorAll('.report-option').forEach(o => o.classList.remove('selected'));
+        document.getElementById('submit-report').disabled = true;
+        document.getElementById('report-modal').classList.add('visible');
+    }
+
+    document.getElementById('close-report').addEventListener('click', () => {
+        document.getElementById('report-modal').classList.remove('visible');
+    });
+
+    document.querySelectorAll('.report-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.report-option').forEach(o => o.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedReason = btn.dataset.reason;
+            document.getElementById('submit-report').disabled = false;
+        });
+    });
+
+    document.getElementById('submit-report').addEventListener('click', async () => {
+        const { ok, data } = await Reports.submit(reportTargetId, selectedReason);
+        document.getElementById('report-modal').classList.remove('visible');
+        if (ok && data.success) {
+            showToast('Laporan berhasil dikirim.', 'success');
+        } else {
+            showToast(data.message || 'Gagal melaporkan.', 'error');
+        }
+    });
+
+    // ---- Menu toggle ----
+    function toggleMenu(postId) {
+        const dropdown = document.getElementById(`dropdown-${postId}`);
+        dropdown.classList.toggle('open');
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('post-menu-btn')) {
+            document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
+
+    // ---- Load More ----
+    document.getElementById('load-more').addEventListener('click', () => {
+        if (hasMore) { page++; loadPosts(); }
+    });
+
+    // ---- Init load ----
+    loadPosts();
+</script>
+</body>
+</html>

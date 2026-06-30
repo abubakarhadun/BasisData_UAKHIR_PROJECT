@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daftar — Sociaverse</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .strength-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+        .strength-fill { height: 100%; border-radius: 2px; transition: width 0.3s, background 0.3s; width: 0; }
+    </style>
+</head>
+<body>
+
+<div class="auth-page">
+    <div class="auth-card">
+
+        <div class="auth-logo">
+            <div class="logo-mark">✦</div>
+            <h1>Sociaverse</h1>
+            <p>Buat akun baru dan bergabung bersama kami.</p>
+        </div>
+
+        <div id="alert" style="display:none; border-radius:10px; padding:12px 14px; font-size:14px; margin-bottom:16px;"></div>
+
+        <form id="register-form">
+            <div class="form-group">
+                <label class="form-label" for="fullname">Nama Lengkap</label>
+                <input type="text" id="fullname" class="form-control"
+                       placeholder="Nama lengkap Anda" autocomplete="name" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="username">Username</label>
+                <input type="text" id="username" class="form-control"
+                       placeholder="contoh: budi_pratama" autocomplete="username" required
+                       minlength="3" maxlength="30">
+                <span class="form-hint">3–30 karakter, huruf, angka, dan underscore saja.</span>
+                <span class="form-error" id="username-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">Email</label>
+                <input type="email" id="email" class="form-control"
+                       placeholder="email@contoh.com" autocomplete="email" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" class="form-control"
+                       placeholder="Minimal 6 karakter" autocomplete="new-password" required minlength="6">
+                <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+                <span class="form-hint" id="strength-text"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="confirm-password">Konfirmasi Password</label>
+                <input type="password" id="confirm-password" class="form-control"
+                       placeholder="Ulangi password Anda" autocomplete="new-password" required>
+                <span class="form-error" id="confirm-error"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" style="width:100%; margin-top:8px;" id="reg-btn">
+                Buat Akun
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Sudah punya akun? <a href="login.html">Masuk di sini</a>
+        </div>
+    </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+    redirectIfLoggedIn();
+
+    const alertEl     = document.getElementById('alert');
+    const regBtn      = document.getElementById('reg-btn');
+    const pwInput     = document.getElementById('password');
+    const strengthBar = document.getElementById('strength-fill');
+    const strengthTxt = document.getElementById('strength-text');
+
+    function showAlert(msg, type = 'error') {
+        alertEl.style.display = 'block';
+        alertEl.textContent = msg;
+        if (type === 'error') {
+            alertEl.style.background = 'rgba(255,68,68,0.1)';
+            alertEl.style.border = '1px solid rgba(255,68,68,0.3)';
+            alertEl.style.color = '#ff4444';
+        } else {
+            alertEl.style.background = 'rgba(0,200,81,0.1)';
+            alertEl.style.border = '1px solid rgba(0,200,81,0.3)';
+            alertEl.style.color = '#00c851';
+        }
+    }
+
+    // Live password strength indicator
+    pwInput.addEventListener('input', () => {
+        const pw = pwInput.value;
+        let score = 0;
+        if (pw.length >= 6)                    score++;
+        if (pw.length >= 10)                   score++;
+        if (/[A-Z]/.test(pw))                  score++;
+        if (/[0-9]/.test(pw))                  score++;
+        if (/[^A-Za-z0-9]/.test(pw))           score++;
+
+        const colors = ['', '#ff4444', '#ff8800', '#ffbb33', '#00c851', '#00c851'];
+        const labels = ['', 'Sangat lemah', 'Lemah', 'Cukup', 'Kuat', 'Sangat kuat'];
+        strengthBar.style.width   = `${score * 20}%`;
+        strengthBar.style.background = colors[score] || '#333';
+        strengthTxt.textContent      = pw ? labels[score] : '';
+        strengthTxt.style.color      = colors[score];
+    });
+
+    // Username validation
+    document.getElementById('username').addEventListener('input', (e) => {
+        const val = e.target.value;
+        const err = document.getElementById('username-error');
+        if (val && !/^[a-zA-Z0-9_]{3,30}$/.test(val)) {
+            err.textContent = 'Hanya huruf, angka, underscore. 3–30 karakter.';
+        } else {
+            err.textContent = '';
+        }
+    });
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        alertEl.style.display = 'none';
+
+        const fullname = document.getElementById('fullname').value.trim();
+        const username = document.getElementById('username').value.trim();
+        const email    = document.getElementById('email').value.trim();
+        const password = pwInput.value;
+        const confirm  = document.getElementById('confirm-password').value;
+        const confirmErr = document.getElementById('confirm-error');
+
+        // Client-side validations
+        if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+            showAlert('Username tidak valid. Gunakan huruf, angka, underscore (3–30 karakter).');
+            return;
+        }
+
+        if (password !== confirm) {
+            confirmErr.textContent = 'Password tidak cocok.';
+            return;
+        }
+        confirmErr.textContent = '';
+
+        if (password.length < 6) {
+            showAlert('Password minimal 6 karakter.');
+            return;
+        }
+
+        regBtn.disabled    = true;
+        regBtn.textContent = 'Mendaftarkan...';
+
+        const { ok, data } = await Auth.register(username, email, password, fullname);
+
+        if (ok && data.success) {
+            setToken(data.data.token);
+            setUser(data.data.user);
+            showAlert('Akun berhasil dibuat! Mengarahkan...', 'success');
+            setTimeout(() => { window.location.href = 'timeline.html'; }, 1000);
+        } else {
+            showAlert(data.message || 'Registrasi gagal. Coba lagi.');
+            regBtn.disabled    = false;
+            regBtn.textContent = 'Buat Akun';
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard — Sociaverse</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .admin-tabs {
+            display: flex; gap: 4px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); padding: 6px;
+            margin-bottom: 24px; flex-wrap: wrap;
+        }
+        .admin-tab-btn {
+            flex: 1; min-width: 80px;
+            padding: 10px 16px; border-radius: var(--radius-md);
+            background: none; color: var(--text-secondary);
+            font-size: 13px; font-weight: 600;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        .admin-tab-btn.active { background: var(--accent-glow); color: var(--accent); }
+        .admin-tab-btn:hover:not(.active) { background: var(--bg-hover); color: var(--text-primary); }
+
+        .search-bar {
+            display: flex; gap: 8px; margin-bottom: 16px;
+        }
+        .search-bar input {
+            flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: var(--radius-md); color: var(--text-primary);
+            padding: 10px 14px; font-size: 14px; outline: none;
+        }
+        .search-bar input:focus { border-color: var(--border-focus); }
+
+        .table-wrap {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); overflow: hidden;
+        }
+        .report-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px;
+        }
+        .report-card .post-preview {
+            background: var(--bg-input); border-radius: var(--radius-md);
+            padding: 10px; margin: 10px 0; font-size: 13px;
+            color: var(--text-secondary); border-left: 3px solid var(--accent);
+        }
+        .report-meta { font-size: 13px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 12px; }
+        .report-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .filter-btn {
+            padding: 6px 14px; border-radius: var(--radius-full);
+            background: var(--bg-input); border: 1px solid var(--border);
+            color: var(--text-secondary); font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .filter-btn.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+        <div style="font-size:20px;font-weight:700;margin-bottom:24px;">⚙️ Admin Dashboard</div>
+
+        <!-- Stats Grid -->
+        <div class="admin-grid" id="stats-grid">
+            <!-- Filled by JS -->
+            <div class="stat-card"><div class="skeleton" style="height:80px;border-radius:8px;"></div></div>
+            <div class="stat-card"><div class="skeleton" style="height:80px;border-radius:8px;"></div></div>
+            <div class="stat-card"><div class="skeleton" style="height:80px;border-radius:8px;"></div></div>
+            <div class="stat-card"><div class="skeleton" style="height:80px;border-radius:8px;"></div></div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="admin-tabs">
+            <button class="admin-tab-btn active" id="tab-users"   onclick="switchTab('users')">👥 Pengguna</button>
+            <button class="admin-tab-btn"         id="tab-posts"   onclick="switchTab('posts')">📝 Postingan</button>
+            <button class="admin-tab-btn"         id="tab-reports" onclick="switchTab('reports')">⚠️ Laporan</button>
+        </div>
+
+        <div id="tab-content">
+            <div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>
+        </div>
+    </main>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+    requireAuth();
+
+    // Must be admin
+    if (!isAdmin()) {
+        showToast('Akses ditolak. Hanya admin.', 'error');
+        setTimeout(() => window.location.href = 'timeline.html', 1500);
+    }
+
+    buildSidebar('admin');
+
+    let currentTab        = 'users';
+    let reportFilter      = 'pending';
+    let userSearchTimeout;
+
+    // ---- Load Stats ----
+    async function loadStats() {
+        const { ok, data } = await Admin.getStats();
+        if (!ok || !data.success) return;
+
+        const s = data.data;
+        document.getElementById('stats-grid').innerHTML = `
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-number">${s.TOTAL_USERS || 0}</div>
+                <div class="stat-label-sm">Total Pengguna</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🚫</div>
+                <div class="stat-number">${s.BANNED_USERS || 0}</div>
+                <div class="stat-label-sm">Akun Diblokir</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📝</div>
+                <div class="stat-number">${s.TOTAL_POSTS || 0}</div>
+                <div class="stat-label-sm">Total Postingan</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-number">${s.PENDING_REPORTS || 0}</div>
+                <div class="stat-label-sm">Laporan Pending</div>
+            </div>
+        `;
+    }
+
+    // ---- Tab Switcher ----
+    function switchTab(tab) {
+        currentTab = tab;
+        ['users','posts','reports'].forEach(t => {
+            document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+        });
+        if (tab === 'users')   loadUsersTab();
+        if (tab === 'posts')   loadPostsTab();
+        if (tab === 'reports') loadReportsTab();
+    }
+
+    // ================================================================
+    // USERS TAB
+    // ================================================================
+    function loadUsersTab() {
+        document.getElementById('tab-content').innerHTML = `
+            <div class="search-bar">
+                <input type="text" id="user-search" placeholder="🔍  Cari pengguna...">
+                <button class="btn btn-secondary btn-sm" onclick="fetchUsers()">Cari</button>
+            </div>
+            <div class="table-wrap">
+                <div id="users-table-body">
+                    <div style="display:flex;justify-content:center;padding:32px;"><div class="spinner"></div></div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('user-search').addEventListener('input', (e) => {
+            clearTimeout(userSearchTimeout);
+            userSearchTimeout = setTimeout(() => fetchUsers(e.target.value), 400);
+        });
+
+        fetchUsers();
+    }
+
+    async function fetchUsers(search = '') {
+        const { ok, data } = await Admin.getUsers(1, search);
+        const body = document.getElementById('users-table-body');
+        if (!ok || !data.success) { body.innerHTML = '<p style="padding:16px;color:var(--danger);">Gagal memuat.</p>'; return; }
+
+        if (!data.data.length) {
+            body.innerHTML = `<div class="empty-state" style="padding:32px;">
+                <div class="empty-icon">👤</div><div class="empty-title">Tidak ada pengguna.</div></div>`;
+            return;
+        }
+
+        body.innerHTML = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th><th>Pengguna</th><th>Email</th>
+                        <th>Role</th><th>Status</th><th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.data.map(u => `
+                        <tr id="user-row-${u.USER_ID}">
+                            <td style="color:var(--text-muted)">#${u.USER_ID}</td>
+                            <td>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <img src="${avatarUrl(u.PROFILE_PICTURE)}" class="avatar avatar-sm">
+                                    <div>
+                                        <div style="font-weight:600;">${escHtml(u.FULLNAME)}</div>
+                                        <div style="font-size:12px;color:var(--text-muted);">@${escHtml(u.USERNAME)}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="font-size:13px;">${escHtml(u.EMAIL)}</td>
+                            <td><span class="badge ${u.ROLE === 'admin' ? 'badge-admin' : ''}">${u.ROLE}</span></td>
+                            <td>
+                                <span class="badge ${u.IS_ACTIVE ? 'badge-active' : 'badge-banned'}">
+                                    ${u.IS_ACTIVE ? 'Aktif' : 'Diblokir'}
+                                </span>
+                            </td>
+                            <td>
+                                ${u.ROLE !== 'admin' ? `
+                                    <button class="btn btn-sm ${u.IS_ACTIVE ? 'btn-danger' : 'btn-secondary'}"
+                                            onclick="toggleBan(${u.USER_ID}, ${u.IS_ACTIVE})">
+                                        ${u.IS_ACTIVE ? '🚫 Blokir' : '✓ Aktifkan'}
+                                    </button>
+                                ` : '—'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    async function toggleBan(userId, isCurrentlyActive) {
+        const action = isCurrentlyActive ? 'memblokir' : 'mengaktifkan';
+        if (!confirm(`Apakah Anda yakin ingin ${action} pengguna ini?`)) return;
+
+        const { ok, data } = await Admin.banUser(userId, isCurrentlyActive ? 1 : 0);
+        if (ok && data.success) {
+            showToast(data.message, 'success');
+            fetchUsers(document.getElementById('user-search')?.value || '');
+            loadStats();
+        } else {
+            showToast(data.message || 'Gagal.', 'error');
+        }
+    }
+
+    // ================================================================
+    // POSTS TAB
+    // ================================================================
+    async function loadPostsTab() {
+        document.getElementById('tab-content').innerHTML = `
+            <div class="table-wrap">
+                <div id="posts-table-body">
+                    <div style="display:flex;justify-content:center;padding:32px;"><div class="spinner"></div></div>
+                </div>
+            </div>`;
+
+        const { ok, data } = await Admin.getPosts();
+        const body = document.getElementById('posts-table-body');
+        if (!ok || !data.success) { body.innerHTML = '<p style="padding:16px;color:var(--danger);">Gagal memuat.</p>'; return; }
+
+        body.innerHTML = `
+            <table class="data-table">
+                <thead>
+                    <tr><th>ID</th><th>Penulis</th><th>Konten</th><th>Likes</th><th>Komentar</th><th>Aksi</th></tr>
+                </thead>
+                <tbody>
+                    ${data.data.map(p => `
+                        <tr id="admin-post-${p.POST_ID}">
+                            <td style="color:var(--text-muted)">#${p.POST_ID}</td>
+                            <td>
+                                <a href="profile.html?u=${escHtml(p.USERNAME)}" style="font-weight:600;">
+                                    @${escHtml(p.USERNAME)}
+                                </a>
+                            </td>
+                            <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;">
+                                ${escHtml(p.CONTENT)}
+                            </td>
+                            <td>❤️ ${p.LIKE_COUNT || 0}</td>
+                            <td>💬 ${p.COMMENT_COUNT || 0}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm"
+                                        onclick="adminDeletePost(${p.POST_ID})">🗑️ Hapus</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    async function adminDeletePost(postId) {
+        if (!confirm('Hapus postingan ini sebagai admin?')) return;
+        const { ok, data } = await Posts.delete(postId);
+        if (ok && data.success) {
+            document.getElementById(`admin-post-${postId}`)?.remove();
+            showToast('Postingan dihapus.', 'success');
+            loadStats();
+        } else {
+            showToast(data.message || 'Gagal menghapus.', 'error');
+        }
+    }
+
+    // ================================================================
+    // REPORTS TAB
+    // ================================================================
+    function loadReportsTab() {
+        document.getElementById('tab-content').innerHTML = `
+            <div class="filter-row">
+                <button class="filter-btn ${reportFilter === 'pending'  ? 'active' : ''}" onclick="setReportFilter('pending')">⏳ Pending</button>
+                <button class="filter-btn ${reportFilter === 'reviewed' ? 'active' : ''}" onclick="setReportFilter('reviewed')">🔍 Ditinjau</button>
+                <button class="filter-btn ${reportFilter === 'resolved' ? 'active' : ''}" onclick="setReportFilter('resolved')">✅ Selesai</button>
+                <button class="filter-btn ${reportFilter === 'dismissed'? 'active' : ''}" onclick="setReportFilter('dismissed')">❌ Ditolak</button>
+                <button class="filter-btn ${reportFilter === 'all'      ? 'active' : ''}" onclick="setReportFilter('all')">📋 Semua</button>
+            </div>
+            <div id="reports-list">
+                <div style="display:flex;justify-content:center;padding:32px;"><div class="spinner"></div></div>
+            </div>
+        `;
+        fetchReports();
+    }
+
+    function setReportFilter(status) {
+        reportFilter = status;
+        loadReportsTab();
+    }
+
+    async function fetchReports() {
+        const { ok, data } = await Admin.getReports(reportFilter);
+        const list = document.getElementById('reports-list');
+        if (!ok || !data.success) { list.innerHTML = '<p style="color:var(--danger);">Gagal memuat.</p>'; return; }
+
+        if (!data.data.length) {
+            list.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">✅</div>
+                <div class="empty-title">Tidak ada laporan ${reportFilter}</div>
+            </div>`;
+            return;
+        }
+
+        list.innerHTML = data.data.map(r => `
+            <div class="report-card" id="report-card-${r.REPORT_ID}">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <div>
+                        <span class="badge badge-pending" style="margin-right:8px;">#${r.REPORT_ID}</span>
+                        <strong>⚠️ Dilaporkan oleh @${escHtml(r.REPORTER_USERNAME)}</strong>
+                    </div>
+                    <span class="badge ${r.STATUS === 'pending' ? 'badge-pending' : r.STATUS === 'resolved' ? 'badge-active' : 'badge-banned'}">${r.STATUS}</span>
+                </div>
+
+                <div class="post-preview">
+                    <strong>Post oleh @${escHtml(r.POST_OWNER_USERNAME)}:</strong><br>
+                    ${escHtml(r.POST_CONTENT?.substring(0, 200))}${r.POST_CONTENT?.length > 200 ? '...' : ''}
+                </div>
+
+                <div class="report-meta">
+                    <span>📝 Alasan: ${escHtml(r.REASON)}</span>
+                    <span>📅 ${timeAgo(r.REPORTED_AT)}</span>
+                </div>
+
+                ${r.STATUS === 'pending' || r.STATUS === 'reviewed' ? `
+                    <div class="report-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="updateReport(${r.REPORT_ID}, 'reviewed')">🔍 Tinjau</button>
+                        <button class="btn btn-primary btn-sm"   onclick="updateReport(${r.REPORT_ID}, 'resolved')">✅ Selesaikan</button>
+                        <button class="btn btn-danger btn-sm"    onclick="updateReport(${r.REPORT_ID}, 'dismissed')">❌ Tolak</button>
+                        <button class="btn btn-danger btn-sm"    onclick="adminDeletePost(${r.POST_ID})">🗑️ Hapus Post</button>
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    async function updateReport(reportId, status) {
+        const { ok, data } = await Admin.updateReport(reportId, status);
+        if (ok && data.success) {
+            showToast(data.message, 'success');
+            fetchReports();
+            loadStats();
+        } else {
+            showToast(data.message || 'Gagal.', 'error');
+        }
+    }
+
+    // ---- Init ----
+    loadStats();
+    switchTab('users');
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cari Pengguna — Sociaverse</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .search-box {
+            position: relative; margin-bottom: 24px;
+        }
+        .search-box input {
+            width: 100%; padding: 14px 20px 14px 48px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-full); color: var(--text-primary);
+            font-size: 16px; outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .search-box input:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .search-icon {
+            position: absolute; left: 18px; top: 50%;
+            transform: translateY(-50%); font-size: 18px;
+            color: var(--text-muted); pointer-events: none;
+        }
+        .user-card {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px; background: var(--bg-card);
+            border: 1px solid var(--border); border-radius: var(--radius-lg);
+            margin-bottom: 10px; transition: border-color 0.2s;
+        }
+        .user-card:hover { border-color: #333; }
+        .user-card-info { flex: 1; }
+        .user-card-name { font-size: 15px; font-weight: 600; }
+        .user-card-handle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+        .user-card-followers { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+        <div style="font-size:20px;font-weight:700;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+            🔍 Cari Pengguna
+        </div>
+
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Ketik nama atau username..."
+                   autocomplete="off" spellcheck="false">
+        </div>
+
+        <div id="results">
+            <div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <div class="empty-title">Cari Teman</div>
+                <div class="empty-desc">Ketik minimal 2 karakter untuk mencari pengguna.</div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+    requireAuth();
+    buildSidebar('search');
+
+    let searchTimeout;
+    const input   = document.getElementById('search-input');
+    const results = document.getElementById('results');
+
+    input.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        const q = input.value.trim();
+
+        if (q.length < 2) {
+            results.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <div class="empty-title">Cari Teman</div>
+                <div class="empty-desc">Ketik minimal 2 karakter.</div>
+            </div>`;
+            return;
+        }
+
+        results.innerHTML = `<div style="display:flex;justify-content:center;padding:24px;"><div class="spinner"></div></div>`;
+
+        // Debounce: wait 400ms after user stops typing
+        searchTimeout = setTimeout(() => doSearch(q), 400);
+    });
+
+    async function doSearch(q) {
+        const { ok, data } = await Users.search(q);
+
+        if (!ok || !data.success) {
+            results.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">😕</div>
+                <div class="empty-title">Terjadi kesalahan</div>
+            </div>`;
+            return;
+        }
+
+        if (!data.data.length) {
+            results.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">👻</div>
+                <div class="empty-title">Tidak Ada Hasil</div>
+                <div class="empty-desc">Tidak ada pengguna dengan nama "<strong>${escHtml(q)}</strong>".</div>
+            </div>`;
+            return;
+        }
+
+        results.innerHTML = data.data.map(u => `
+            <div class="user-card">
+                <img src="${avatarUrl(u.PROFILE_PICTURE)}" class="avatar avatar-md" alt="avatar">
+                <div class="user-card-info">
+                    <div class="user-card-name">${escHtml(u.FULLNAME)}</div>
+                    <div class="user-card-handle">@${escHtml(u.USERNAME)}</div>
+                    <div class="user-card-followers">👥 ${u.FOLLOWER_COUNT || 0} pengikut</div>
+                </div>
+                <a href="profile.html?u=${escHtml(u.USERNAME)}" class="btn btn-secondary btn-sm">Lihat Profil</a>
+            </div>
+        `).join('');
+    }
+
+    // Auto-focus search input
+    input.focus();
+</script>
+</body>
+</html>

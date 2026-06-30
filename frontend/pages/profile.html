@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil — Sociaverse</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .profile-bio { font-size: 14px; color: var(--text-secondary); margin-top: 8px; line-height: 1.6; }
+        .profile-joined { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+        .profile-actions { display: flex; gap: 10px; margin-top: 16px; }
+        .posts-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 3px;
+            margin-top: 4px;
+        }
+        .grid-post {
+            aspect-ratio: 1;
+            background: var(--bg-hover);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+        .grid-post img { width: 100%; height: 100%; object-fit: cover; }
+        .grid-post-placeholder {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 12px; text-align: center;
+            font-size: 12px; color: var(--text-muted);
+            background: var(--bg-card);
+        }
+        .grid-post-placeholder .post-excerpt {
+            font-size: 11px; line-height: 1.4;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+        }
+        .grid-post-overlay {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            gap: 16px; opacity: 0;
+            transition: opacity 0.2s;
+            color: #fff; font-size: 14px; font-weight: 600;
+        }
+        .grid-post:hover .grid-post-overlay { opacity: 1; }
+
+        .tab-bar {
+            display: flex; border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .tab-btn {
+            flex: 1; padding: 12px; background: none;
+            color: var(--text-muted); font-size: 14px; font-weight: 600;
+            border-bottom: 2px solid transparent; transition: all 0.2s;
+        }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        /* Edit profile modal */
+        .avatar-edit-wrap { position: relative; width: fit-content; margin: 0 auto 20px; }
+        .avatar-edit-wrap .avatar-xl { display: block; }
+        .change-avatar-btn {
+            position: absolute; bottom: 0; right: 0;
+            background: var(--accent); color: #fff;
+            border-radius: 50%; width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; cursor: pointer; border: 2px solid var(--bg-card);
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+
+        <!-- Profile Header -->
+        <div class="profile-header" id="profile-header">
+            <div style="display:flex;align-items:center;justify-content:center;padding:40px;">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tab-posts" onclick="switchTab('posts')">📝 Postingan</button>
+            <button class="tab-btn" id="tab-followers" onclick="switchTab('followers')">👥 Pengikut</button>
+            <button class="tab-btn" id="tab-following" onclick="switchTab('following')">➕ Mengikuti</button>
+        </div>
+
+        <div id="tab-content">
+            <div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>
+        </div>
+
+    </main>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal-overlay" id="edit-modal">
+    <div class="modal" style="max-width:500px;">
+        <div class="modal-header">
+            <div class="modal-title">✏️ Edit Profil</div>
+            <button class="modal-close" id="close-edit">✕</button>
+        </div>
+
+        <div class="avatar-edit-wrap">
+            <img id="edit-avatar-preview" class="avatar avatar-xl" alt="avatar">
+            <label class="change-avatar-btn" for="avatar-file" title="Ganti foto profil">📷</label>
+            <input type="file" id="avatar-file" accept="image/*" style="display:none">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Nama Lengkap</label>
+            <input type="text" id="edit-fullname" class="form-control" maxlength="100">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Bio</label>
+            <textarea id="edit-bio" class="form-control" rows="3" maxlength="500"
+                      style="resize:vertical;" placeholder="Ceritakan sedikit tentang dirimu..."></textarea>
+        </div>
+
+        <button class="btn btn-primary" id="save-profile" style="width:100%;">Simpan Perubahan</button>
+
+        <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+        <div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;">🔒 Ganti Password</div>
+        <div class="form-group">
+            <input type="password" id="current-pw" class="form-control" placeholder="Password saat ini">
+        </div>
+        <div class="form-group">
+            <input type="password" id="new-pw" class="form-control" placeholder="Password baru (min 6 karakter)">
+        </div>
+        <button class="btn btn-secondary" id="save-password" style="width:100%;">Ubah Password</button>
+    </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+    requireAuth();
+    buildSidebar('profile');
+
+    const currentUser = getUser();
+    const params      = new URLSearchParams(window.location.search);
+    const targetUsername = params.get('u') || currentUser.username;
+    const isOwnProfile   = targetUsername.toLowerCase() === currentUser.username.toLowerCase();
+
+    let profileData = null;
+    let activeTab   = 'posts';
+
+    // ---- Load Profile ----
+    async function loadProfile() {
+        const { ok, data } = await Users.getProfile(targetUsername);
+        if (!ok || !data.success) {
+            document.getElementById('profile-header').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">😕</div>
+                    <div class="empty-title">Pengguna tidak ditemukan</div>
+                </div>`;
+            return;
+        }
+
+        profileData = data.data;
+        renderProfileHeader(profileData);
+        switchTab('posts');
+    }
+
+    function renderProfileHeader(p) {
+        const joinDate = new Date(p.CREATED_AT).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+        document.getElementById('profile-header').innerHTML = `
+            <div class="profile-top">
+                <img src="${avatarUrl(p.PROFILE_PICTURE)}" class="avatar avatar-xl" alt="avatar">
+                <div style="flex:1;">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <h2 style="font-size:22px;font-weight:700;">${escHtml(p.FULLNAME)}</h2>
+                        ${p.ROLE === 'admin' ? '<span class="badge badge-admin">Admin</span>' : ''}
+                    </div>
+                    <div style="font-size:14px;color:var(--text-muted);margin-top:2px;">@${escHtml(p.USERNAME)}</div>
+                    ${p.BIO ? `<div class="profile-bio">${escHtml(p.BIO)}</div>` : ''}
+                    <div class="profile-joined">📅 Bergabung ${joinDate}</div>
+
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">${p.TOTAL_POSTS || 0}</div>
+                            <div class="stat-label">Postingan</div>
+                        </div>
+                        <div class="stat-item" onclick="switchTab('followers')">
+                            <div class="stat-value">${p.TOTAL_FOLLOWERS || 0}</div>
+                            <div class="stat-label">Pengikut</div>
+                        </div>
+                        <div class="stat-item" onclick="switchTab('following')">
+                            <div class="stat-value">${p.TOTAL_FOLLOWING || 0}</div>
+                            <div class="stat-label">Mengikuti</div>
+                        </div>
+                    </div>
+
+                    <div class="profile-actions">
+                        ${isOwnProfile
+                            ? `<button class="btn btn-primary btn-sm" onclick="openEditModal()">✏️ Edit Profil</button>
+                               <button class="btn btn-secondary btn-sm" onclick="Auth.logout()">🚪 Logout</button>`
+                            : `<button class="btn ${p.IS_FOLLOWING ? 'btn-secondary' : 'btn-primary'} btn-sm"
+                                       id="follow-btn" onclick="toggleFollow()">
+                                   ${p.IS_FOLLOWING ? '✓ Mengikuti' : '+ Ikuti'}
+                               </button>`
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ---- Follow / Unfollow ----
+    async function toggleFollow() {
+        const btn = document.getElementById('follow-btn');
+        btn.disabled = true;
+
+        const { ok, data } = await Users.follow(profileData.USER_ID);
+        if (ok && data.success) {
+            profileData.IS_FOLLOWING = data.action === 'FOLLOWED';
+            profileData.TOTAL_FOLLOWERS = (profileData.TOTAL_FOLLOWERS || 0) + (profileData.IS_FOLLOWING ? 1 : -1);
+            renderProfileHeader(profileData);
+        } else {
+            showToast(data.message || 'Gagal.', 'error');
+            btn.disabled = false;
+        }
+    }
+
+    // ---- Tabs ----
+    async function switchTab(tab) {
+        activeTab = tab;
+        ['posts', 'followers', 'following'].forEach(t => {
+            document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+        });
+
+        const content = document.getElementById('tab-content');
+        content.innerHTML = `<div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>`;
+
+        if (tab === 'posts') {
+            renderPostsGrid(profileData.POSTS || []);
+        } else if (tab === 'followers') {
+            const { data } = await Users.getFollowers(profileData.USER_ID);
+            renderUserList(data.success ? data.data : []);
+        } else {
+            const { data } = await Users.getFollowing(profileData.USER_ID);
+            renderUserList(data.success ? data.data : []);
+        }
+    }
+
+    function renderPostsGrid(posts) {
+        const content = document.getElementById('tab-content');
+        if (!posts.length) {
+            content.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <div class="empty-title">Belum Ada Postingan</div>
+                    <div class="empty-desc">Postingan akan muncul di sini.</div>
+                </div>`;
+            return;
+        }
+
+        content.innerHTML = `<div class="posts-grid" id="posts-grid"></div>`;
+        const grid = document.getElementById('posts-grid');
+
+        posts.forEach(post => {
+            const item = document.createElement('div');
+            item.className = 'grid-post';
+            item.onclick = () => window.location.href = `timeline.html#post-${post.POST_ID}`;
+
+            if (post.IMAGE_URL) {
+                item.innerHTML = `
+                    <img src="${avatarUrl(post.IMAGE_URL)}" alt="post" loading="lazy">
+                    <div class="grid-post-overlay">
+                        ❤️ ${post.LIKE_COUNT || 0} &nbsp; 💬 ${post.COMMENT_COUNT || 0}
+                    </div>`;
+            } else {
+                item.innerHTML = `
+                    <div class="grid-post-placeholder">
+                        <div class="post-excerpt">${escHtml(post.CONTENT)}</div>
+                    </div>
+                    <div class="grid-post-overlay">
+                        ❤️ ${post.LIKE_COUNT || 0} &nbsp; 💬 ${post.COMMENT_COUNT || 0}
+                    </div>`;
+            }
+            grid.appendChild(item);
+        });
+    }
+
+    function renderUserList(users) {
+        const content = document.getElementById('tab-content');
+        if (!users.length) {
+            content.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">👥</div>
+                    <div class="empty-title">Belum Ada Pengguna</div>
+                </div>`;
+            return;
+        }
+
+        content.innerHTML = users.map(u => `
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+                <img src="${avatarUrl(u.PROFILE_PICTURE)}" class="avatar avatar-md" alt="avatar">
+                <div style="flex:1;">
+                    <a href="profile.html?u=${escHtml(u.USERNAME)}"
+                       style="font-weight:600;font-size:15px;">${escHtml(u.FULLNAME)}</a>
+                    <div style="font-size:13px;color:var(--text-muted);">@${escHtml(u.USERNAME)}</div>
+                </div>
+                <a href="profile.html?u=${escHtml(u.USERNAME)}" class="btn btn-secondary btn-sm">Lihat</a>
+            </div>
+        `).join('');
+    }
+
+    // ---- Edit Profile Modal ----
+    function openEditModal() {
+        document.getElementById('edit-avatar-preview').src = avatarUrl(profileData.PROFILE_PICTURE);
+        document.getElementById('edit-fullname').value     = profileData.FULLNAME || '';
+        document.getElementById('edit-bio').value          = profileData.BIO || '';
+        document.getElementById('edit-modal').classList.add('visible');
+    }
+
+    document.getElementById('close-edit').addEventListener('click', () => {
+        document.getElementById('edit-modal').classList.remove('visible');
+    });
+
+    // Avatar live preview
+    document.getElementById('avatar-file').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) document.getElementById('edit-avatar-preview').src = URL.createObjectURL(file);
+    });
+
+    // Save profile
+    document.getElementById('save-profile').addEventListener('click', async () => {
+        const btn      = document.getElementById('save-profile');
+        const fullname = document.getElementById('edit-fullname').value.trim();
+        const bio      = document.getElementById('edit-bio').value.trim();
+        const file     = document.getElementById('avatar-file').files[0];
+
+        if (!fullname) { showToast('Nama lengkap tidak boleh kosong.', 'error'); return; }
+
+        btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+        const fd = new FormData();
+        fd.append('fullname', fullname);
+        fd.append('bio', bio);
+        if (file) fd.append('profile_picture', file);
+
+        const { ok, data } = await Users.updateProfile(fd);
+        if (ok && data.success) {
+            // Update local storage
+            const u = getUser();
+            u.fullname = fullname;
+            if (file) u.profile_picture = null; // will refresh
+            setUser(u);
+
+            document.getElementById('edit-modal').classList.remove('visible');
+            showToast('Profil berhasil diperbarui! ✨', 'success');
+            loadProfile();
+        } else {
+            showToast(data.message || 'Gagal menyimpan.', 'error');
+        }
+
+        btn.disabled = false; btn.textContent = 'Simpan Perubahan';
+    });
+
+    // Change password
+    document.getElementById('save-password').addEventListener('click', async () => {
+        const current = document.getElementById('current-pw').value;
+        const newPw   = document.getElementById('new-pw').value;
+
+        if (!current || !newPw) { showToast('Isi semua field password.', 'error'); return; }
+        if (newPw.length < 6)   { showToast('Password baru minimal 6 karakter.', 'error'); return; }
+
+        const { ok, data } = await Users.changePassword(current, newPw);
+        if (ok && data.success) {
+            showToast('Password berhasil diubah!', 'success');
+            document.getElementById('current-pw').value = '';
+            document.getElementById('new-pw').value     = '';
+        } else {
+            showToast(data.message || 'Gagal mengubah password.', 'error');
+        }
+    });
+
+    // ---- Init ----
+    loadProfile();
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Sociaverse</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .password-wrap { position: relative; }
+        .password-wrap .form-control { padding-right: 46px; }
+        .toggle-pw {
+            position: absolute; right: 12px; top: 50%;
+            transform: translateY(-50%);
+            background: none; color: var(--text-muted);
+            font-size: 18px; padding: 4px;
+        }
+        .toggle-pw:hover { color: var(--text-primary); }
+    </style>
+</head>
+<body>
+
+<div class="auth-page">
+    <div class="auth-card">
+
+        <!-- Logo -->
+        <div class="auth-logo">
+            <div class="logo-mark">✦</div>
+            <h1>Sociaverse</h1>
+            <p>Selamat datang kembali! Masuk untuk melanjutkan.</p>
+        </div>
+
+        <!-- Alert -->
+        <div id="alert" style="display:none; background:rgba(255,68,68,0.1); border:1px solid rgba(255,68,68,0.3);
+             color:#ff4444; border-radius:10px; padding:12px 14px; font-size:14px; margin-bottom:16px;"></div>
+
+        <!-- Form -->
+        <form id="login-form">
+            <div class="form-group">
+                <label class="form-label" for="login-input">Username atau Email</label>
+                <input type="text" id="login-input" class="form-control"
+                       placeholder="Masukkan username atau email" autocomplete="username" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password-input">Password</label>
+                <div class="password-wrap">
+                    <input type="password" id="password-input" class="form-control"
+                           placeholder="Masukkan password" autocomplete="current-password" required>
+                    <button type="button" class="toggle-pw" id="toggle-pw" title="Tampilkan password">👁</button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" style="width:100%; margin-top:8px;" id="login-btn">
+                Masuk
+            </button>
+        </form>
+
+        <div class="auth-divider">atau</div>
+
+        <div class="auth-footer">
+            Belum punya akun? <a href="register.html">Daftar sekarang</a>
+        </div>
+
+    </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+    // Redirect if already logged in
+    redirectIfLoggedIn();
+
+    const form     = document.getElementById('login-form');
+    const alert    = document.getElementById('alert');
+    const loginBtn = document.getElementById('login-btn');
+    const togglePw = document.getElementById('toggle-pw');
+    const pwInput  = document.getElementById('password-input');
+
+    // Toggle password visibility
+    togglePw.addEventListener('click', () => {
+        const isText = pwInput.type === 'text';
+        pwInput.type = isText ? 'password' : 'text';
+        togglePw.textContent = isText ? '👁' : '🙈';
+    });
+
+    function showAlert(msg) {
+        alert.textContent = msg;
+        alert.style.display = 'block';
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        alert.style.display = 'none';
+
+        const login    = document.getElementById('login-input').value.trim();
+        const password = pwInput.value;
+
+        if (!login || !password) {
+            showAlert('Username/email dan password wajib diisi.');
+            return;
+        }
+
+        loginBtn.disabled     = true;
+        loginBtn.textContent  = 'Memproses...';
+
+        const { ok, data } = await Auth.login(login, password);
+
+        if (ok && data.success) {
+            setToken(data.data.token);
+            setUser(data.data.user);
+            showToast('Login berhasil! Selamat datang 👋', 'success');
+            setTimeout(() => { window.location.href = 'timeline.html'; }, 600);
+        } else {
+            showAlert(data.message || 'Login gagal. Periksa username dan password Anda.');
+            loginBtn.disabled    = false;
+            loginBtn.textContent = 'Masuk';
+        }
+    });
+</script>
+</body>
+</html>

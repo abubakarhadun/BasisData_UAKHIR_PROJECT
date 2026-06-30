@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifikasi — Sociaverse</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .notif-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px; padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .notif-header h2 { font-size: 20px; font-weight: 700; }
+        .notif-list { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+        .notif-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 14px 16px; border-bottom: 1px solid var(--border);
+            transition: background 0.2s; cursor: pointer; position: relative;
+        }
+        .notif-item:last-child { border-bottom: none; }
+        .notif-item:hover { background: var(--bg-hover); }
+        .notif-item.unread { background: rgba(124,77,255,0.05); }
+        .unread-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent); flex-shrink: 0; margin-top: 6px;
+        }
+        .notif-icon { font-size: 24px; flex-shrink: 0; }
+        .notif-body { flex: 1; }
+        .notif-msg { font-size: 14px; line-height: 1.5; }
+        .notif-msg strong { font-weight: 600; color: var(--text-primary); }
+        .notif-time { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .notif-type-icon {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; flex-shrink: 0;
+        }
+        .type-like    { background: rgba(255,68,68,0.15); }
+        .type-comment { background: rgba(124,77,255,0.15); }
+        .type-follow  { background: rgba(0,200,81,0.15); }
+    </style>
+</head>
+<body>
+
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content">
+        <div class="notif-header">
+            <h2>🔔 Notifikasi</h2>
+            <button class="btn btn-secondary btn-sm" id="mark-all-btn">✓ Tandai semua dibaca</button>
+        </div>
+
+        <div id="notif-container">
+            <div style="display:flex;justify-content:center;padding:40px;">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+    requireAuth();
+    buildSidebar('notifications');
+
+    const typeConfig = {
+        like:    { icon: '❤️', class: 'type-like'    },
+        comment: { icon: '💬', class: 'type-comment'  },
+        follow:  { icon: '👤', class: 'type-follow'   },
+    };
+
+    async function loadNotifications() {
+        const { ok, data } = await Notifications.getAll();
+        const container = document.getElementById('notif-container');
+
+        if (!ok || !data.success) {
+            container.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">😕</div>
+                <div class="empty-title">Gagal memuat notifikasi</div>
+            </div>`;
+            return;
+        }
+
+        if (!data.data.length) {
+            container.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">🔕</div>
+                <div class="empty-title">Belum Ada Notifikasi</div>
+                <div class="empty-desc">Aktivitas dari pengguna lain akan muncul di sini.</div>
+            </div>`;
+            return;
+        }
+
+        container.innerHTML = `<div class="notif-list" id="notif-list"></div>`;
+        const list = document.getElementById('notif-list');
+
+        data.data.forEach(n => {
+            const cfg  = typeConfig[n.TYPE] || { icon: '🔔', class: '' };
+            const item = document.createElement('div');
+            item.className = `notif-item ${n.IS_READ ? '' : 'unread'}`;
+            item.id = `notif-${n.NOTIFICATION_ID}`;
+
+            item.innerHTML = `
+                ${!n.IS_READ ? '<div class="unread-dot"></div>' : '<div style="width:8px;"></div>'}
+                <div class="notif-type-icon ${cfg.class}">${cfg.icon}</div>
+                <img src="${avatarUrl(n.SENDER_AVATAR)}" class="avatar avatar-sm" alt="avatar">
+                <div class="notif-body">
+                    <div class="notif-msg">${escHtml(n.MESSAGE)}</div>
+                    <div class="notif-time">${timeAgo(n.CREATED_AT)}</div>
+                </div>
+            `;
+
+            item.addEventListener('click', async () => {
+                if (!n.IS_READ) {
+                    await Notifications.markRead(n.NOTIFICATION_ID);
+                    item.classList.remove('unread');
+                    item.querySelector('.unread-dot')?.remove();
+                    n.IS_READ = 1;
+                }
+
+                // Navigate to the relevant content
+                if (n.TYPE === 'like' || n.TYPE === 'comment') {
+                    window.location.href = `timeline.html#post-${n.REFERENCE_ID}`;
+                } else if (n.TYPE === 'follow' && n.SENDER_USERNAME) {
+                    window.location.href = `profile.html?u=${n.SENDER_USERNAME}`;
+                }
+            });
+
+            list.appendChild(item);
+        });
+    }
+
+    document.getElementById('mark-all-btn').addEventListener('click', async () => {
+        const { ok, data } = await Notifications.markAllRead();
+        if (ok && data.success) {
+            document.querySelectorAll('.notif-item.unread').forEach(el => {
+                el.classList.remove('unread');
+                el.querySelector('.unread-dot')?.remove();
+            });
+            // Update badge in sidebar
+            const badge = document.getElementById('notif-badge');
+            if (badge) badge.style.display = 'none';
+            showToast('Semua notifikasi ditandai dibaca.', 'success');
+        }
+    });
+
+    loadNotifications();
+</script>
+</body>
+</html>
