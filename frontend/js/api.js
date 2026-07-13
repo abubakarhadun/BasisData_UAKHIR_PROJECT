@@ -15,17 +15,40 @@ const isLoggedIn = ()       => !!getToken();
 const isAdmin    = ()       => { const u = getUser(); return u && u.role === 'admin'; };
 
 /**
+ * Resolve the path to a file inside /frontend/pages/ relative to wherever
+ * the current page is located. Works with Live Server, file://, and any
+ * sub-path serving setup.
+ */
+function pageUrl(filename) {
+    const current = window.location.pathname;
+    // If we're already inside the pages/ directory, just use the filename
+    if (current.includes('/pages/')) {
+        return filename;
+    }
+    // Otherwise we're at the frontend root (index.html) — go into pages/
+    return 'pages/' + filename;
+}
+
+/**
  * Core fetch wrapper.
  * Automatically attaches Authorization header and handles JSON.
  */
 async function apiFetch(endpoint, options = {}) {
     const token = getToken();
-    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    const headers = { ...options.headers };
 
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     // Don't set Content-Type for FormData (let browser set boundary)
-    if (options.body instanceof FormData) delete headers['Content-Type'];
+    const isMultipart = options.body && (
+        options.body instanceof FormData ||
+        typeof options.body.append === 'function' ||
+        Object.prototype.toString.call(options.body) === '[object FormData]'
+    );
+
+    if (!isMultipart && !headers['Content-Type'] && !headers['content-type']) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
     const data = await response.json().catch(() => ({ success: false, message: 'Server error' }));
@@ -33,7 +56,7 @@ async function apiFetch(endpoint, options = {}) {
     if (response.status === 401) {
         clearAuth();
         if (!window.location.href.includes('login')) {
-            window.location.href = '/frontend/pages/login.html';
+            window.location.href = pageUrl('login.html');
         }
     }
 
@@ -59,7 +82,7 @@ const Auth = {
     async me() { return apiFetch('/auth/me'); },
     logout() {
         clearAuth();
-        window.location.href = '/frontend/pages/login.html';
+        window.location.href = pageUrl('login.html');
     },
 };
 
@@ -198,7 +221,7 @@ function escHtml(str) {
 /** Redirect to login if not authenticated */
 function requireAuth() {
     if (!isLoggedIn()) {
-        window.location.href = '/frontend/pages/login.html';
+        window.location.href = pageUrl('login.html');
         return false;
     }
     return true;
@@ -207,7 +230,7 @@ function requireAuth() {
 /** Redirect to home if already logged in */
 function redirectIfLoggedIn() {
     if (isLoggedIn()) {
-        window.location.href = '/frontend/pages/timeline.html';
+        window.location.href = pageUrl('timeline.html');
     }
 }
 

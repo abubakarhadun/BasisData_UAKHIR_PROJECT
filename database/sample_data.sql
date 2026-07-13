@@ -9,43 +9,43 @@
 -- USERS (10 users: 1 admin + 9 regular)
 -- ============================================================
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('admin', 'admin@sociaverse.id', '$2b$10$YourBcryptHashHere', 'Super Admin',
+VALUES ('admin', 'admin@sociaverse.id', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Super Admin',
         'Platform administrator.', 'uploads/default_avatar.png', 'admin', 1);
 
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('budi_pratama', 'budi@email.com', '$2b$10$YourBcryptHashHere', 'Budi Pratama',
+VALUES ('budi_pratama', 'budi@email.com', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Budi Pratama',
         'Fotografer jalanan | Malang 📷', 'uploads/default_avatar.png', 'user', 1);
 
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('sari_dewi', 'sari@email.com', '$2b$10$YourBcryptHashHere', 'Sari Dewi',
+VALUES ('sari_dewi', 'sari@email.com', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Sari Dewi',
         'Pecinta kuliner dan travel ✈️🍜', 'uploads/default_avatar.png', 'user', 1);
 
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('rizky_adi', 'rizky@email.com', '$2b$10$YourBcryptHashHere', 'Rizky Aditya',
+VALUES ('rizky_adi', 'rizky@email.com', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Rizky Aditya',
         'Developer & coffee addict ☕', 'uploads/default_avatar.png', 'user', 1);
 
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('maya_lestari', 'maya@email.com', '$2b$10$YourBcryptHashHere', 'Maya Lestari',
+VALUES ('maya_lestari', 'maya@email.com', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Maya Lestari',
         'UI/UX Designer | Making things beautiful ✨', 'uploads/default_avatar.png', 'user', 1);
 
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('dani_putra', 'dani@email.com', '$2b$10$YourBcryptHashHere', 'Dani Putra',
+VALUES ('dani_putra', 'dani@email.com', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Dani Putra',
         'Gamer & anime enthusiast 🎮', 'uploads/default_avatar.png', 'user', 1);
 
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('ayu_fitri', 'ayu@email.com', '$2b$10$YourBcryptHashHere', 'Ayu Fitria',
+VALUES ('ayu_fitri', 'ayu@email.com', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Ayu Fitria',
         'Mahasiswi Informatika | Coding is art 💻', 'uploads/default_avatar.png', 'user', 1);
 
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('eko_wahyu', 'eko@email.com', '$2b$10$YourBcryptHashHere', 'Eko Wahyudi',
+VALUES ('eko_wahyu', 'eko@email.com', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Eko Wahyudi',
         'Mountain lover | 3000m above sea level 🏔️', 'uploads/default_avatar.png', 'user', 1);
 
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('linda_sari', 'linda@email.com', '$2b$10$YourBcryptHashHere', 'Linda Sari',
+VALUES ('linda_sari', 'linda@email.com', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Linda Sari',
         'Book lover | Kutu buku sejati 📚', 'uploads/default_avatar.png', 'user', 1);
 
 INSERT INTO users (username, email, password, fullname, bio, profile_picture, role, is_active)
-VALUES ('fajar_nugroho', 'fajar@email.com', '$2b$10$YourBcryptHashHere', 'Fajar Nugroho',
+VALUES ('fajar_nugroho', 'fajar@email.com', '$2b$10$z2p6mOodVKTPdYGDq2yVd.HZYMvFWD.Urnwh.Wynsh9LUEKH/hQaG', 'Fajar Nugroho',
         'Musisi indie | Suara hati lewat melodi 🎸', 'uploads/default_avatar.png', 'user', 1);
 
 COMMIT;

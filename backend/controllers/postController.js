@@ -16,22 +16,23 @@ const getTimeline = async (req, res, next) => {
         const page  = parseInt(req.query.page)  || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
+        const maxrow = offset + limit; // Kita buat variabel penampung baru
 
         const result = await db.execute(
             `SELECT * FROM (
                 SELECT tv.*, ROWNUM AS rn
                 FROM   timeline_view tv
-                WHERE  ROWNUM <= :max_row
+                WHERE  ROWNUM <= :maxrow
              ) WHERE rn > :offset`,
-            { max_row: offset + limit, offset }
+            { maxrow: maxrow, offset: offset } // Menggunakan nama variabel alfabet murni
         );
 
         // If user is authenticated, attach their like status to each post
         let likedPostIds = new Set();
         if (req.user) {
             const likedResult = await db.execute(
-                `SELECT post_id FROM likes WHERE user_id = :uid`,
-                { uid: req.user.user_id }
+                `SELECT post_id FROM likes WHERE user_id = :userId`,
+                { userId: req.user.user_id }
             );
             likedPostIds = new Set(likedResult.rows.map(r => r.POST_ID));
         }
@@ -96,8 +97,8 @@ const getPost = async (req, res, next) => {
         // Check if authenticated user liked this post
         if (req.user) {
             const likeCheck = await db.execute(
-                'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = :pid AND user_id = :uid',
-                { pid: id, uid: req.user.user_id }
+                'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = :pid AND user_id = :userId',
+                { pid: id, userId: req.user.user_id }
             );
             post.IS_LIKED_BY_ME = likeCheck.rows[0].CNT > 0;
         }
@@ -122,9 +123,9 @@ const createPost = async (req, res, next) => {
 
         // Call stored procedure via direct SQL (package-compatible)
         const result = await db.execute(
-            `BEGIN social_media_pkg.create_post(:uid, :content, :img, :pid, :status); END;`,
+            `BEGIN social_media_pkg.create_post(:userId, :content, :img, :pid, :status); END;`,
             {
-                uid:     req.user.user_id,
+                userId:  req.user.user_id,
                 content: content.trim(),
                 img:     image_url,
                 pid:     { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
@@ -243,24 +244,24 @@ const toggleLike = async (req, res, next) => {
 
         // Check if already liked
         const likeCheck = await db.execute(
-            'SELECT like_id FROM likes WHERE post_id = :pid AND user_id = :uid',
-            { pid: id, uid: user_id }
+            'SELECT like_id FROM likes WHERE post_id = :pid AND user_id = :userId',
+            { pid: id, userId: user_id }
         );
 
         let action;
         if (likeCheck.rows && likeCheck.rows.length > 0) {
             // Unlike
             await db.execute(
-                'DELETE FROM likes WHERE post_id = :pid AND user_id = :uid',
-                { pid: id, uid: user_id },
+                'DELETE FROM likes WHERE post_id = :pid AND user_id = :userId',
+                { pid: id, userId: user_id },
                 { autoCommit: true }
             );
             action = 'UNLIKED';
         } else {
             // Like (trigger will auto-create notification)
             await db.execute(
-                'INSERT INTO likes (post_id, user_id) VALUES (:pid, :uid)',
-                { pid: id, uid: user_id },
+                'INSERT INTO likes (post_id, user_id) VALUES (:pid, :userId)',
+                { pid: id, userId: user_id },
                 { autoCommit: true }
             );
             action = 'LIKED';
@@ -305,13 +306,13 @@ const addComment = async (req, res, next) => {
 
         const result = await db.execute(
             `INSERT INTO comments (post_id, user_id, comment_text)
-             VALUES (:pid, :uid, :text)
+             VALUES (:pid, :userId, :text)
              RETURNING comment_id INTO :cid`,
             {
-                pid:  id,
-                uid:  req.user.user_id,
-                text: comment_text.trim(),
-                cid:  { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+                pid:    id,
+                userId: req.user.user_id,
+                text:   comment_text.trim(),
+                cid:    { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
             },
             { autoCommit: true }
         );

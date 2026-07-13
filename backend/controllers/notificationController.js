@@ -13,10 +13,10 @@ const getNotifications = async (req, res, next) => {
                     s.profile_picture AS sender_avatar
              FROM   notifications n
              LEFT JOIN users s ON n.sender_id = s.user_id
-             WHERE  n.receiver_id = :uid
+             WHERE  n.receiver_id = :userId
              ORDER BY n.created_at DESC
              FETCH FIRST 50 ROWS ONLY`,
-            { uid: req.user.user_id }
+            { userId: req.user.user_id }
         );
         res.json({ success: true, data: result.rows });
     } catch (err) { next(err); }
@@ -25,8 +25,8 @@ const getNotifications = async (req, res, next) => {
 const markAllRead = async (req, res, next) => {
     try {
         await db.execute(
-            'UPDATE notifications SET is_read = 1 WHERE receiver_id = :uid AND is_read = 0',
-            { uid: req.user.user_id },
+            'UPDATE notifications SET is_read = 1 WHERE receiver_id = :userId AND is_read = 0',
+            { userId: req.user.user_id },
             { autoCommit: true }
         );
         res.json({ success: true, message: 'Semua notifikasi ditandai sudah dibaca.' });
@@ -36,8 +36,8 @@ const markAllRead = async (req, res, next) => {
 const markOneRead = async (req, res, next) => {
     try {
         await db.execute(
-            'UPDATE notifications SET is_read = 1 WHERE notification_id = :id AND receiver_id = :uid',
-            { id: req.params.id, uid: req.user.user_id },
+            'UPDATE notifications SET is_read = 1 WHERE notification_id = :id AND receiver_id = :userId',
+            { id: req.params.id, userId: req.user.user_id },
             { autoCommit: true }
         );
         res.json({ success: true, message: 'Notifikasi ditandai sudah dibaca.' });

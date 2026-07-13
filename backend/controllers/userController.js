@@ -48,10 +48,10 @@ const getProfile = async (req, res, next) => {
                     (SELECT COUNT(*) FROM likes    l WHERE l.post_id = p.post_id) AS like_count,
                     (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comment_count
              FROM   posts p
-             WHERE  p.user_id = :uid
+             WHERE  p.user_id = :userId
              ORDER BY p.created_at DESC
              FETCH FIRST 12 ROWS ONLY`,
-            { uid: profile.USER_ID }
+            { userId: profile.USER_ID }
         );
 
         profile.POSTS = postsResult.rows;
@@ -160,7 +160,8 @@ const followUser = async (req, res, next) => {
                 frid:   follower_id,
                 fgid:   following_id,
                 action: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 100 },
-            }
+            },
+            { autoCommit: true }
         );
 
         const action = result.outBinds.action;

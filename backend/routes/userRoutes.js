@@ -8,13 +8,18 @@ const {
     followUser, getFollowers, getFollowing, searchUsers
 } = require('../controllers/userController');
 
-router.get('/search',                          authenticate, searchUsers);
-router.get('/:username',                       optionalAuth, getProfile);
-router.put('/profile/edit',  authenticate, upload.single('profile_picture'), updateProfile);
-router.put('/profile/password', authenticate, changePassword);
-router.post('/:id/follow',     authenticate, followUser);
-router.get('/:id/followers',   optionalAuth, getFollowers);
-router.get('/:id/following',   optionalAuth, getFollowing);
+// ⚠️ PENTING: Static/specific routes harus di atas wildcard /:username
+// agar Express tidak meng-intercept mereka sebagai username
+
+router.get('/search',                                       authenticate, searchUsers);
+router.put('/profile/edit',     authenticate, upload.single('profile_picture'), updateProfile);
+router.put('/profile/password', authenticate,              changePassword);
+router.post('/:id/follow',      authenticate,              followUser);
+router.get('/:id/followers',    optionalAuth,              getFollowers);
+router.get('/:id/following',    optionalAuth,              getFollowing);
+
+// Wildcard route — harus paling bawah
+router.get('/:username',        optionalAuth,              getProfile);
 
 module.exports = router;
 

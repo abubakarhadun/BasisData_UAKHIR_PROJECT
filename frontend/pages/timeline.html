@@ -245,7 +245,9 @@
 
         card.innerHTML = `
             <div class="post-header">
-                <img src="${avatarUrl(post.PROFILE_PICTURE)}" class="post-avatar" alt="avatar">
+                <a href="profile.html?u=${escHtml(post.USERNAME)}">
+                    <img src="${avatarUrl(post.PROFILE_PICTURE)}" class="post-avatar" alt="avatar">
+                </a>
                 <div class="post-meta">
                     <a href="profile.html?u=${escHtml(post.USERNAME)}" class="post-author">
                         ${escHtml(post.FULLNAME)}
@@ -337,7 +339,9 @@
         }
         list.innerHTML = comments.map(c => `
             <div class="comment-item" id="comment-item-${c.COMMENT_ID}">
-                <img src="${avatarUrl(c.PROFILE_PICTURE)}" class="avatar avatar-sm">
+                <a href="profile.html?u=${escHtml(c.USERNAME)}">
+                    <img src="${avatarUrl(c.PROFILE_PICTURE)}" class="avatar avatar-sm">
+                </a>
                 <div class="comment-body">
                     <a href="profile.html?u=${escHtml(c.USERNAME)}" class="comment-author">
                         ${escHtml(c.USERNAME)}

@@ -5,7 +5,7 @@
 const oracledb = require('oracledb');
 
 // Use Thin mode (no Oracle Client needed for development)
-oracledb.initOracleClient(); // Comment this out to use Thin mode
+//oracledb.initOracleClient(); // Comment this out to use Thin mode
 
 let pool;
 
